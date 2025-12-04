@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>휴먼컬러 프로 (컬러보정완료)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        :root { --bg-color: #f0f2f5; }
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; }
+        
+        /* --- [입력 패널 UI] --- */
+        .control-panel { 
+            max-width: 900px; margin: 0 auto 30px auto; 
+            background: white; padding: 25px; border-radius: 12px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05); 
+        }
+        .control-panel h1 { font-size: 22px; text-align: center; margin-bottom: 25px; color: #111; font-weight: 800; }
+        
+        .input-row { display: flex; gap: 15px; margin-bottom: 20px; align-items: flex-end; }
+        .input-box { flex: 1; }
+        .input-box label { display: block; margin-bottom: 5px; font-weight: 700; font-size: 13px; color: #555; }
+        .input-box input, .input-box select { 
+            width: 100%; padding: 10px; border: 1px solid #ddd; 
+            border-radius: 6px; font-size: 14px; box-sizing: border-box;
+        }
+
+        .pillars-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+        .pillar-card { background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: 10px; text-align: center; }
+        .pillar-title { font-size: 13px; font-weight: 800; margin-bottom: 8px; color: #333; }
+        
+        /* 기둥별 타이틀 색상 */
+        .p-1 .pillar-title { color: #009944; } .p-2 .pillar-title { color: #1D419B; }
+        .p-3 .pillar-title { color: #D1357A; } .p-4 .pillar-title { color: #271E6E; }
+
+        .color-palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+        
+        /* 컬러 버튼 스타일 (약어 표시) */
+        .color-btn { 
+            width: 100%; aspect-ratio: 1; border-radius: 4px; cursor: pointer; 
+            border: 1px solid rgba(0,0,0,0.1); 
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 10px; font-weight: 900; 
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5); /* 텍스트 그림자 */
+            transition: transform 0.2s;
+        }
+        .color-btn:hover { transform: scale(1.1); box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 10;}
+        .color-btn.selected { border: 2px solid #333; transform: scale(0.95); box-shadow: inset 0 0 0 2px white; }
+
+        .selected-label { font-size: 11px; margin-top: 8px; font-weight: bold; color: #666; height: 15px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .btn-full { width: 100%; padding: 15px; background: #222; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        
+        /* --- [결과지 A4 최적화 스타일] --- */
+        .report-container { 
+            width: 210mm; height: 296mm; 
+            background: white; margin: 0 auto; 
+            padding: 30px 40px; 
+            box-sizing: border-box; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.1); 
+            display: none; position: relative;
+            display: flex; flex-direction: column; 
+        }
+        .report-container.visible { display: flex; } 
+
+        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 15px; align-items: flex-end;}
+        .user-title { font-size: 24px; font-weight: 800; letter-spacing: -1px; }
+        .report-meta h3 { margin: 0; font-size: 16px; color: #333; font-weight: 700; }
+
+        .attr-section { display: flex; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .attr-code-box { 
+            width: 65px; height: 65px; display: flex; align-items: center; justify-content: center; 
+            font-size: 26px; font-weight: 900; margin-right: 15px; border-radius: 6px; color: white;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .attr-desc { flex: 1; font-size: 11px; line-height: 1.45; white-space: pre-line; display: flex; align-items: center; color: #333; letter-spacing: -0.3px;}
+
+        .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 15px; }
+        .sum-card { background: #fff; border: 1px solid #e0e0e0; padding: 8px; border-radius: 6px; text-align: center; }
+        .sum-title { font-size: 10px; color: #888; margin-bottom: 5px; font-weight: bold; display: block;}
+        
+        /* 요약 컬러 박스 */
+        .sum-color-box { 
+            width: 100%; height: 22px; border-radius: 3px; margin-bottom: 5px; 
+            display: flex; align-items: center; justify-content: center;
+            font-size: 9px; color: white; font-weight: 900; 
+            text-shadow: 0 0 2px rgba(0,0,0,0.5); /* 흰색 글씨 잘 보이게 */
+            text-transform: uppercase;
+        }
+        .sum-desc { font-size: 9px; color: #555; line-height: 1.3; white-space: pre-line; text-align: left; letter-spacing: -0.5px;}
+
+        .main-section { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+        .section-row { display: flex; border: 1px solid #ddd; min-height: 135px; border-radius: 6px; overflow: hidden; }
+        .section-label { 
+            width: 12%; background: rgba(255,255,255,0.7); 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            text-align: center; border-right: 1px solid rgba(0,0,0,0.05); 
+        }
+        .lbl-order { font-size: 10px; color: #666; margin-bottom: 3px; font-weight: 600; }
+        .lbl-main { font-size: 14px; font-weight: 900; color: #222; }
+        
+        .section-content { width: 88%; padding: 10px 15px; position: relative; display: flex; flex-direction: column; justify-content: center; }
+        .color-header { display: flex; align-items: center; margin-bottom: 5px; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 4px; }
+        .color-name { font-size: 16px; font-weight: 900; margin-right: 12px; text-transform: uppercase; letter-spacing: -0.5px;}
+        .color-keywords { font-size: 10px; color: #444; font-weight: 500; }
+        .color-desc { font-size: 10px; line-height: 1.5; color: #222; white-space: pre-line; letter-spacing: -0.3px; }
+        
+        /* 그림자(주의) 텍스트 스타일 */
+        .shadow-text { color: #d32f2f; font-weight: 600; display: block; margin-top: 4px; font-size: 10px; }
+
+        .footer {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: auto; padding-top: 15px; border-top: 2px solid #333;
+        }
+        .footer-left, .footer-right { font-size: 12px; font-weight: 700; color: #333; }
+
+        /* 배경색 클래스 (JS 연동) */
+        .bg-magenta { background-color: #E4007F; }
+        .bg-red { background-color: #E60012; }
+        .bg-orange { background-color: #F39800; }
+        .bg-redorange { background-color: #EB6100; }
+        .bg-yellow { background-color: #FFD400; }
+        .bg-yellowgreen { background-color: #8FC31F; }
+        .bg-green { background-color: #009944; }
+        .bg-turquoise { background-color: #00A0E9; }
+        .bg-bluegreen { background-color: #0089A7; }
+        .bg-blue { background-color: #0068B7; }
+        .bg-indigo { background-color: #1D2088; }
+        .bg-purple { background-color: #920783; }
+
+    </style>
+</head>
+<body>
+
+    <div class="control-panel">
+        <h1>HU.MAN COLOR (Pro)</h1>
+        
+        <div class="input-row">
+            <div class="input-box" style="flex:2;">
+                <label>이름 및 생년월일</label>
+                <input type="text" id="inpName" value="박보검 1993. 6. 16">
+            </div>
+            <div class="input-box" style="flex:1;">
+                <label>속성 (Type)</label>
+                <select id="inpAttr">
+                    <option value="T+">T+ Type (Green)</option>
+                    <option value="T-">T- Type (Y.Green)</option>
+                    <option value="F+">F+ Type (Red.O)</option>
+                    <option value="F-">F- Type (Yellow)</option>
+                    <option value="E+">E+ Type (Gold)</option>
+                    <option value="E-">E- Type (Blue.G)</option>
+                    <option value="M+">M+ Type (Magenta)</option>
+                    <option value="M-">M- Type (Purple)</option>
+                    <option value="W+">W+ Type (Indigo)</option>
+                    <option value="W-">W- Type (Blue)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="pillars-grid">
+            <div class="pillar-card p-1">
+                <div class="pillar-title">1st 선천 (사고)</div>
+                <div class="color-palette" id="palette_1"></div>
+                <div class="selected-label" id="label_1"></div>
+                <input type="hidden" id="val_1">
+            </div>
+            <div class="pillar-card p-2">
+                <div class="pillar-title">2nd 후천 (행동)</div>
+                <div class="color-palette" id="palette_2"></div>
+                <div class="selected-label" id="label_2"></div>
+                <input type="hidden" id="val_2">
+            </div>
+            <div class="pillar-card p-3">
+                <div class="pillar-title">3rd 목표 (바람)</div>
+                <div class="color-palette" id="palette_3"></div>
+                <div class="selected-label" id="label_3"></div>
+                <input type="hidden" id="val_3">
+            </div>
+            <div class="pillar-card p-4">
+                <div class="pillar-title">4th 노하우 (방향)</div>
+                <div class="color-palette" id="palette_4"></div>
+                <div class="selected-label" id="label_4"></div>
+                <input type="hidden" id="val_4">
+            </div>
+        </div>
+
+        <button class="btn-full" onclick="generateReport()">A4 결과지 생성 & PDF 저장</button>
+    </div>
+
+
+    <div id="reportArea" class="report-container">
+        <div class="header">
+            <div class="user-info"><div class="user-title" id="outName"></div></div>
+            <div class="report-meta"><h3>휴먼컬러 분석</h3><div id="outDate"></div></div>
+        </div>
+
+        <div class="attr-section">
+            <div class="attr-code-box" id="outAttrCode"></div>
+            <div class="attr-desc" id="outAttrDesc"></div>
+        </div>
+
+        <div class="summary-grid">
+            <div class="sum-card">
+                <span class="sum-title">1st 선천/사고</span>
+                <div class="sum-color-box" id="sum1_box"></div>
+                <div class="sum-desc" id="sum1_desc"></div>
+            </div>
+            <div class="sum-card">
+                <span class="sum-title">2nd 후천/행동</span>
+                <div class="sum-color-box" id="sum2_box"></div>
+                <div class="sum-desc" id="sum2_desc"></div>
+            </div>
+            <div class="sum-card">
+                <span class="sum-title">3rd 목표/바람</span>
+                <div class="sum-color-box" id="sum3_box"></div>
+                <div class="sum-desc" id="sum3_desc"></div>
+            </div>
+            <div class="sum-card">
+                <span class="sum-title">4th 노하우/방향</span>
+                <div class="sum-color-box" id="sum4_box"></div>
+                <div class="sum-desc" id="sum4_desc"></div>
+            </div>
+        </div>
+
+        <div class="main-section">
+            <div class="section-row" id="row_1"><div class="section-label"><span class="lbl-order">1st 선천</span><span class="lbl-main">사고</span></div><div class="section-content"><div class="color-header"><span class="color-name" id="main1_color"></span><span class="color-keywords" id="main1_key"></span></div><div class="color-desc" id="main1_text"></div></div></div>
+            <div class="section-row" id="row_2"><div class="section-label"><span class="lbl-order">2nd 후천</span><span class="lbl-main">행동</span></div><div class="section-content"><div class="color-header"><span class="color-name" id="main2_color"></span><span class="color-keywords" id="main2_key"></span></div><div class="color-desc" id="main2_text"></div></div></div>
+            <div class="section-row" id="row_3"><div class="section-label"><span class="lbl-order">3rd 목표</span><span class="lbl-main">바람</span></div><div class="section-content"><div class="color-header"><span class="color-name" id="main3_color"></span><span class="color-keywords" id="main3_key"></span></div><div class="color-desc" id="main3_text"></div></div></div>
+            <div class="section-row" id="row_4"><div class="section-label"><span class="lbl-order">4th 노하우</span><span class="lbl-main">방향</span></div><div class="section-content"><div class="color-header"><span class="color-name" id="main4_color"></span><span class="color-keywords" id="main4_key"></span></div><div class="color-desc" id="main4_text"></div></div></div>
+        </div>
+
+        <div class="footer">
+            <div class="footer-left">채아힐링센터</div>
+            <div class="footer-right">정민경대표상담사</div>
+        </div>
+    </div>
+
+    <script>
+        // === [데이터베이스 (컬러보정 완료)] ===
+        // code: 버튼에 표시될 약어
+        const colors = [
+            { id: 1, name: "MAGENTA", code: "Mg", hex: "#E4007F", class: "bg-magenta" },
+            { id: 2, name: "RED", code: "R", hex: "#E60012", class: "bg-red" },
+            { id: 3, name: "ORANGE", code: "O", hex: "#F39800", class: "bg-orange" },
+            { id: 4, name: "RED ORANGE", code: "RO", hex: "#EB6100", class: "bg-redorange" },
+            { id: 5, name: "YELLOW", code: "Y", hex: "#FFD400", class: "bg-yellow" },
+            { id: 6, name: "YELLOW GREEN", code: "YG", hex: "#8FC31F", class: "bg-yellowgreen" },
+            { id: 7, name: "GREEN", code: "G", hex: "#009944", class: "bg-green" },
+            { id: 8, name: "TURQUOISE", code: "T", hex: "#00A0E9", class: "bg-turquoise" },
+            { id: 9, name: "BLUE GREEN", code: "BG", hex: "#0089A7", class: "bg-bluegreen" },
+            { id: 10, name: "BLUE", code: "B", hex: "#0068B7", class: "bg-blue" },
+            { id: 11, name: "INDIGO", code: "I", hex: "#1D2088", class: "bg-indigo" },
+            { id: 12, name: "PURPLE", code: "P", hex: "#920783", class: "bg-purple" }
+        ];
+
+        const attributeData = {
+            "T+": { color: "#009944", desc: "▶ [T+ Type] : 곧게 뻗어 올라가는 나무의 기상\n• 위를 향해 곧게 뻗어나가는 성장 욕구와 리더십이 강합니다.\n• 굽히기보다는 부러지는 성향으로, 자존심과 주관이 매우 뚜렷합니다.\n• 어진 성품을 바탕으로 시작하는 힘이 좋고 추진력이 우수합니다.\n• 간섭과 구속을 싫어하며, 자신이 주도하는 환경에서 능력을 발휘합니다." },
+            "T-": { color: "#8FC31F", desc: "▶ [T- Type] : 유연하게 뻗어나가는 넝쿨의 지혜\n• 환경 적응력이 뛰어나며, 어떤 상황에서도 살아남는 끈기가 있습니다.\n• 부드러운 외면 속에 강인한 생활력(외유내강)을 감추고 있습니다.\n• 사람들과 어울리기를 좋아하며 네트워크와 인맥 형성에 능합니다.\n• 현실적이고 실리적인 판단을 하며, 우회하여 목표를 달성하는 지혜가 있습니다." },
+            "F+": { color: "#EB6100", desc: "▶ [F+ Type] : 온 세상을 비추는 태양의 열정\n• 매사에 열정적이고 공명정대하며, 숨기는 것 없이 투명합니다.\n• 예의를 중시하며, 밝고 명랑한 에너지로 주변을 환하게 합니다.\n• 성격이 급하고 불같은 면이 있으나 뒤끝이 없이 깔끔합니다.\n• 자신의 존재를 드러내고 인정받기를 원하며, 표현력이 매우 우수합니다." },
+            "F-": { color: "#FFD400", desc: "▶ [F- Type] : 어둠을 밝히는 촛불의 섬세함\n• 겉으로는 조용해 보이나 내면에는 뜨거운 열정과 집념이 있습니다.\n• 섬세하고 헌신적이며, 타인을 배려하고 따뜻하게 챙기는 마음이 큽니다.\n• 한 가지 분야에 집중하여 전문가적인 식견과 기술을 발휘합니다.\n• 감수성이 풍부하고 예민하여 타인의 감정을 잘 읽어냅니다." },
+            "E+": { color: "#DAA520", desc: "▶ [E+ Type] : 넓고 웅장한 큰 산의 포용력\n• 믿음을 바탕으로 하며, 묵묵하고 중후한 무게감이 있습니다.\n• 포용력이 넓어 많은 사람들의 중간 다리 역할을 하고 중립을 지킵니다.\n• 행동이 신중하고 변화를 싫어하며, 한 번 정한 것은 끝까지 밀고 나갑니다.\n• 신뢰를 목숨처럼 여깁니다." },
+            "E-": { color: "#0089A7", desc: "▶ [E- Type] : 비옥한 대지의 생산력\n• 실속 있고 현실적이며, 무엇이든 길러내고 키워내는 능력이 탁월합니다.\n• 어머니와 같은 포용력으로 주변 사람들을 살뜰히 챙기고 교육합니다.\n• 자기주장을 강하게 내세우기보다 상황에 맞춰 유연하게 대처합니다.\n• 다재다능하고 순발력이 있습니다." },
+            "M+": { color: "#E4007F", desc: "▶ [M+ Type] : 단단한 원석의 결단력\n• 의리를 가장 중요하게 생각하며, 결단력과 추진력이 강합니다.\n• 옳고 그름이 분명하여 맺고 끊음이 확실하고, 개혁적인 성향이 있습니다.\n• 투박해 보일 수 있으나 속정은 깊고 순수한 면이 있습니다.\n• 리더로서 통솔력이 있습니다." },
+            "M-": { color: "#920783", desc: "▶ [M- Type] : 빛나는 보석의 예리함\n• 섬세하고 예민하며, 깔끔하고 완벽함을 추구하는 성향이 있습니다.\n• 자존심이 매우 강하고 냉철하여, 남에게 흠잡히는 것을 싫어합니다.\n• 미적 감각과 센스가 뛰어나며, 정확하고 빈틈없는 일 처리를 보여줍니다.\n• 세련된 매력이 있습니다." },
+            "W+": { color: "#1D2088", desc: "▶ [W+ Type] : 도도하게 흐르는 큰 바다의 지혜\n• 지혜가 뛰어나고 총명하며, 스케일이 크고 유연합니다.\n• 환경에 따라 모양을 바꾸듯 임기응변이 좋고 적응력이 뛰어납니다.\n• 속이 깊어 생각을 쉽게 드러내지 않으며, 비밀을 잘 지킵니다.\n• 정보를 수집하고 기획하는 능력이 탁월합니다." },
+            "W-": { color: "#0068B7", desc: "▶ [W- Type] : 대지를 적시는 봄비의 감성\n• 감수성이 풍부하고 섬세하며, 조용히 스며들어 변화를 만듭니다.\n• 지적이고 아이디어가 넘치며, 기획력과 창의력이 우수합니다.\n• 남을 돕고 봉사하는 마음이 있으며, 부드러운 카리스마를 가졌습니다.\n• 맑고 순수한 영혼을 지향합니다." }
+        };
+
+        const humanColorData = {
+            1: { title: "대지, 포용력, 수용, 여유", desc: "• 큰 마음으로 다른 것들을 받아들일 수 있는 힘이 있습니다.\n• 자신만의 영역을 키워가며, 군더더기 없는 깔끔함을 선호합니다.\n• 리더십이 있고, 강한 정신력을 갖고 있습니다.\n<span class='shadow-text'>▼ 주의: 자신감과 고집의 경계, 타인의 성장을 응원하는 여유</span>", desc_detail: "• 넓은 마음으로 소중하게 여기는 타인을 수용합니다.\n• 침착하고 안정적인 리더타입입니다." },
+            2: { title: "행동력, 태양, 열정, 달성", desc: "• 행동으로 결과를 만들어내는 사람입니다. 일단 부딪혀 봅니다.\n• 책임감이 강하고 현실적응력이 남달라 리더 기질을 발휘합니다.\n• 하고 싶은 것을 해낼 에너지가 충만합니다.\n<span class='shadow-text'>▼ 주의: 열정 과다로 인한 번아웃 주의, 의식적인 휴식</span>", desc_detail: "• 목적을 갖고 움직이는 힘과 열정으로 가득 차 있습니다." },
+            3: { title: "바람, 표현, 순수, 즐거움", desc: "• 목표를 달성하는 일이 곧 기쁨이자 즐거움이 됩니다.\n• 행동이 빠르고 일처리가 빠른 사람입니다.\n• 칭찬을 좋아하며 호기심 가득한 표정을 가졌습니다.\n<span class='shadow-text'>▼ 주의: 돌발 상황에서의 침착함, 끝까지 집중하는 힘</span>", desc_detail: "• 외유내강으로 겉은 부드러우나 속은 단단합니다.\n• 감정을 밖으로 표출하며 즐겁게 사는 것을 중요시합니다." },
+            4: { title: "개혁, 도전, 야망, 자유", desc: "• 현실 안주란 없습니다. 더 나은 미래를 생각합니다.\n• 에너지를 응축한 뒤 폭발해 내는 것이 특징입니다.\n• 야망가이며 칠전팔기로 될 때까지 해냅니다.\n<span class='shadow-text'>▼ 주의: 생각보다는 즉각적인 실천, 꾸준한 끈기</span>", desc_detail: "• 강한 에너지와 추진력을 가지며 목표를 향해 나아갑니다.\n• 새롭게 변화시키고자 하는 도전의식이 강합니다." },
+            5: { title: "하늘, 선견력, 지식, 희망", desc: "• 호기심이 왕성하며 배움에 대한 마음이 큽니다.\n• 남들보다 앞서가는 선구자형이며 긍정적입니다.\n• 변화, 소망, 연구에 있어 좋은 에너지가 있습니다.\n<span class='shadow-text'>▼ 주의: 이상과 현실의 조화, 구체적인 계획 세우기</span>", desc_detail: "• 자신의 생각과 감정을 솔직하게 표현합니다.\n• 앞을 내다보는 힘을 갖고 있으며 늘 밝고 명랑합니다." },
+            6: { title: "꽃, 관찰, 평화, 순수", desc: "• 사람 중심으로 사고하며 상냥하고 온화합니다.\n• 주의 깊고 세심하게 관찰하는 힘을 갖고 있습니다.\n• 애정이 풍부하며 평화를 유지하려 합니다.\n<span class='shadow-text'>▼ 주의: 명확한 의사표현, 거절하는 용기, 실행력</span>", desc_detail: "• 다른 사람들을 수용하고 포용하는 큰 그릇을 가졌습니다.\n• 매사에 주의깊고 유심히 보는 힘이 있으며 친절합니다." },
+            7: { title: "안정력, 숲, 평화, 인내", desc: "• 원리와 원칙에 기반하여 목표를 달성하고자 합니다.\n• 사람 중심 성향으로 평화롭고 중립적입니다.\n• 주변에 사람들이 모여드는 특성이 있습니다.\n<span class='shadow-text'>▼ 주의: 변화를 수용하는 유연함, 긍정적인 화법</span>", desc_detail: "• 순수하고 진실된 마음을 갖고 있으며 맡은 일에 최선을 다합니다.\n• 상황을 차분하게 이끌며 평화를 사랑합니다." },
+            8: { title: "샘, 독립적, 통찰, 섬세", desc: "• 자신에 대한 통찰이 깊고 자기 영역이 확고합니다.\n• 무에서 유를 창조하는 기획성이 남다릅니다.\n• 독립적, 독창적이며 혼자서 잘 하는 사람입니다.\n<span class='shadow-text'>▼ 주의: 함께하는 즐거움 찾기, 타인의 방식 존중</span>", desc_detail: "• 뛰어난 통찰력과 지적인 모습으로 상황을 파악합니다.\n• 자유분방하고 독립적인 사고를 하는 노력형 천재 타입입니다." },
+            9: { title: "지구, 균형, 신념, 워라밸", desc: "• 균형을 추구하며 나의 평화가 우선입니다.\n• 자신의 세계와 공간이 반드시 있어야 하는 사람입니다.\n• 메타인지가 발달하여 자신에게 객관적입니다.\n<span class='shadow-text'>▼ 주의: 타인에게 관대해지기, 믿고 맡기는 여유</span>", desc_detail: "• 세부 사항에 주의를 기울이며 정교하게 접근합니다.\n• 균형을 유지하는 힘으로 삶의 평화와 워라밸을 중시합니다." },
+            10: { title: "커뮤니케이션, 신뢰, 정직", desc: "• 사람에 대한 유연성이 있고 책임감이 강합니다.\n• 신뢰나 유대감을 소중히 여기며 전달 능력이 우수합니다.\n• 거짓을 간파할 수 있으며 거짓말을 싫어합니다.\n<span class='shadow-text'>▼ 주의: 생각을 멈추고 행동하기, 적극적인 자기 표현</span>", desc_detail: "• 창의적이고 예술적인 성향과 감수성을 갖고 있습니다.\n• 언어, 커뮤니케이션 능력이 탁월하며 성실한 사람입니다." },
+            11: { title: "이해력, 바다, 논리, 진실", desc: "• 깊은 사고를 하고 내면을 들여다보는 힘이 있습니다.\n• 냉정하게 판단하고 처리하는 능력이 탁월합니다.\n• 진실을 보는 눈과 통찰력이 좋습니다.\n<span class='shadow-text'>▼ 주의: 자신에게 너그러워지기, 완벽하지 않아도 괜찮음</span>", desc_detail: "• 문제를 해결하는 데 있어 논리적이고 체계적입니다.\n• 전체를 파악하고 냉정하게 판단해 처리합니다." },
+            12: { title: "우주, 직관, 감성, 영감", desc: "• 자신만의 이상이 있고 자유로움을 추구합니다.\n• 직관이 발달하여 무의식적으로 결과를 만들어냅니다.\n• 정신적인 것, 예술, 미적 감각이 탁월합니다.\n<span class='shadow-text'>▼ 주의: 감정의 파도 타기(조절), 현실 감각 키우기</span>", desc_detail: "• 일반적인 사고에 영향을 받지 않으며 직감적입니다.\n• 변화와 안정감을 둘 다 추구하는 신비로운 매력이 있습니다." }
+        };
+
+        // === Logic ===
+        window.onload = function() {
+            [1, 2, 3, 4].forEach(renderPalette);
+            const today = new Date();
+            document.getElementById('outDate').innerText = today.toISOString().slice(0,10);
+        };
+
+        function renderPalette(id) {
+            const container = document.getElementById(`palette_${id}`);
+            const input = document.getElementById(`val_${id}`);
+            const label = document.getElementById(`label_${id}`);
+
+            colors.forEach(c => {
+                const btn = document.createElement('div');
+                btn.className = `color-btn ${c.class}`;
+                btn.title = c.name;
+                btn.innerText = c.code; // 약어 표기
+                btn.onclick = () => {
+                    container.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    input.value = c.id;
+                    label.innerText = c.name; 
+                    label.style.color = c.hex;
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function generateReport() {
+            const name = document.getElementById('inpName').value;
+            const attrKey = document.getElementById('inpAttr').value;
+            const v1 = document.getElementById('val_1').value;
+            const v2 = document.getElementById('val_2').value;
+            const v3 = document.getElementById('val_3').value;
+            const v4 = document.getElementById('val_4').value;
+
+            if(!name) { alert("이름을 입력해주세요."); return; }
+            if(!v1 || !v2 || !v3 || !v4) { alert("4가지 컬러를 모두 선택해주세요."); return; }
+
+            document.getElementById('outName').innerText = name;
+            
+            const attrInfo = attributeData[attrKey];
+            const attrBox = document.getElementById('outAttrCode');
+            attrBox.innerText = attrKey;
+            attrBox.style.backgroundColor = attrInfo.color;
+            document.getElementById('outAttrDesc').innerText = attrInfo.desc;
+
+            const mapSection = (idx, val) => {
+                const cId = parseInt(val);
+                const colorObj = colors.find(c => c.id === cId);
+                const data = humanColorData[cId];
+
+                // 요약부
+                const sumBox = document.getElementById(`sum${idx}_box`);
+                sumBox.className = `sum-color-box ${colorObj.class}`;
+                sumBox.innerText = colorObj.name;
+                
+                document.getElementById(`sum${idx}_desc`).innerText = data.desc_detail;
+
+                // 메인부
+                const mainColorTitle = document.getElementById(`main${idx}_color`);
+                mainColorTitle.innerText = colorObj.name;
+                mainColorTitle.style.color = colorObj.hex;
+                document.getElementById(`main${idx}_key`).innerText = data.title;
+                document.getElementById(`main${idx}_text`).innerHTML = data.desc;
+
+                // 배경색 효과
+                const row = document.getElementById(`row_${idx}`);
+                const hex = colorObj.hex;
+                const r = parseInt(hex.slice(1,3), 16);
+                const g = parseInt(hex.slice(3,5), 16);
+                const b = parseInt(hex.slice(5,7), 16);
+                row.style.backgroundColor = `rgba(${r}, ${g}, ${b}, 0.08)`;
+                row.style.borderColor = `rgba(${r}, ${g}, ${b}, 0.3)`;
+            };
+
+            mapSection(1, v1); mapSection(2, v2); mapSection(3, v3); mapSection(4, v4);
+
+            const reportEl = document.getElementById('reportArea');
+            reportEl.classList.add('visible');
+            const opt = {
+                margin: 0,
+                filename: `${name.split(' ')[0]}_휴먼컬러.pdf`,
+                image: { type: 'jpeg', quality: 1 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().from(reportEl).set(opt).save().then(() => {
+                reportEl.classList.remove('visible');
+            });
+        }
+    </script>
+</body>
+</html>
